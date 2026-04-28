@@ -1,0 +1,313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Role {
+  idRole     Int      @id @default(autoincrement()) @map("id_role")
+  roleName   String   @unique @map("role_name") @db.VarChar(100)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  users      User[]
+  modulePermissions RoleModulePermission[]
+
+  @@map("roles")
+}
+
+model Module {
+  idModule         Int      @id @default(autoincrement()) @map("id_module")
+  moduleCode       String   @unique @map("module_code") @db.VarChar(60)
+  moduleName       String   @map("module_name") @db.VarChar(100)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  rolePermissions  RoleModulePermission[]
+
+  @@map("modules")
+}
+
+model RoleModulePermission {
+  idRole       Int     @map("id_role")
+  idModule     Int     @map("id_module")
+  canCreate    Boolean @default(false) @map("can_create")
+  canRead      Boolean @default(false) @map("can_read")
+  canUpdate    Boolean @default(false) @map("can_update")
+  canDelete    Boolean @default(false) @map("can_delete")
+  canExport    Boolean @default(false) @map("can_export")
+  role         Role    @relation(fields: [idRole], references: [idRole])
+  module       Module  @relation(fields: [idModule], references: [idModule])
+
+  @@id([idRole, idModule])
+  @@map("role_module_permissions")
+}
+
+model CurrencyCatalog {
+  idCurrency     Int      @id @default(autoincrement()) @map("id_currency")
+  currencyCode   String   @unique @map("currency_code") @db.VarChar(10)
+  currencyName   String   @map("currency_name") @db.VarChar(120)
+  currencySymbol String   @map("currency_symbol") @db.VarChar(10)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("catalog_currencies")
+}
+
+model CatalogItem {
+  idItem       Int      @id @default(autoincrement()) @map("id_item")
+  catalogType  String   @map("catalog_type") @db.VarChar(60)
+  itemName     String   @map("item_name") @db.VarChar(150)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  expensePaymentTypeRows ExpenseRecord[] @relation("expense_payment_type")
+  expenseBusinessLineRows ExpenseRecord[] @relation("expense_business_line")
+  expenseSubLineRows ExpenseRecord[] @relation("expense_sub_line")
+  customerPlaceRows Customer[] @relation("customer_place")
+
+  @@unique([catalogType, itemName], map: "uq_catalog_type_name")
+  @@index([catalogType], map: "idx_catalog_items_type")
+  @@map("catalog_items")
+}
+
+model ExpenseRecord {
+  idExpense       Int       @id @default(autoincrement()) @map("id_expense")
+  expenseNumber   String    @unique @map("expense_number") @db.VarChar(30)
+  expenseDate     DateTime  @map("expense_date")
+  vendorName      String    @map("vendor_name") @db.VarChar(180)
+  idPaymentType   Int       @map("id_payment_type")
+  amount          Decimal   @db.Decimal(12, 2)
+  idBusinessLine  Int       @map("id_business_line")
+  idSubLine       Int?      @map("id_sub_line")
+  observations    String?   @db.VarChar(400)
+  evidenceImagePath String? @map("evidence_image_path") @db.VarChar(255)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  paymentType     CatalogItem @relation("expense_payment_type", fields: [idPaymentType], references: [idItem])
+  businessLine    CatalogItem @relation("expense_business_line", fields: [idBusinessLine], references: [idItem])
+  subLine         CatalogItem? @relation("expense_sub_line", fields: [idSubLine], references: [idItem])
+
+  @@index([expenseDate], map: "idx_expenses_date")
+  @@index([idPaymentType], map: "idx_expenses_payment_type")
+  @@index([idBusinessLine], map: "idx_expenses_business_line")
+  @@map("expense_records")
+}
+
+model User {
+  idUser            Int       @id @default(autoincrement()) @map("id_user")
+  fullName          String    @map("full_name") @db.VarChar(150)
+  email             String    @unique @db.VarChar(150)
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  idRole            Int       @map("id_role")
+  isActive          Boolean   @default(true) @map("is_active")
+  mustChangePass    Boolean   @default(false) @map("must_change_pass")
+  sessionRevokedAt  DateTime? @map("session_revoked_at")
+  lastLoginAt       DateTime? @map("last_login_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  role              Role      @relation(fields: [idRole], references: [idRole])
+  sales             Sale[]
+  inventoryRows     Inventory[]
+  updatedSettings   SystemSetting[] @relation("settings_updated_by")
+  inventoryMovementsPerformed InventoryMovement[] @relation("inventory_movements_performed_by")
+
+  @@map("users")
+}
+
+model Product {
+  idProduct      Int         @id @default(autoincrement()) @map("id_product")
+  productName    String      @map("product_name") @db.VarChar(100)
+  baseUnit       String      @map("base_unit") @db.VarChar(20)
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  inventoryRows  Inventory[]
+  inventoryMovements InventoryMovement[]
+  saleDetails    SaleDetail[]
+  prices         ProductPrice[]
+  productionRows ProductionRecord[]
+
+  @@map("products")
+}
+
+model ProductionRecord {
+  idProduction   Int      @id @default(autoincrement()) @map("id_production")
+  idProduct      Int      @map("id_product")
+  quantityBase   Int      @map("quantity_base")
+  climate        String   @db.VarChar(120)
+  productionDate DateTime @map("production_date")
+  createdAt      DateTime @default(now()) @map("created_at")
+  product        Product  @relation(fields: [idProduct], references: [idProduct])
+
+  @@index([idProduct], map: "idx_production_product")
+  @@index([productionDate], map: "idx_production_date")
+  @@map("production_records")
+}
+
+model ProductPrice {
+  idPrice     Int      @id @default(autoincrement()) @map("id_price")
+  idProduct   Int      @map("id_product")
+  unitLabel   String   @map("unit_label") @db.VarChar(30)
+  price       Decimal  @db.Decimal(12, 2)
+  validFrom   DateTime @map("valid_from")
+  validTo     DateTime? @map("valid_to")
+  createdAt   DateTime @default(now()) @map("created_at")
+  product     Product  @relation(fields: [idProduct], references: [idProduct])
+
+  @@index([idProduct], map: "idx_product_prices_product")
+  @@map("product_prices")
+}
+
+model Inventory {
+  idInventory   Int      @id @default(autoincrement()) @map("id_inventory")
+  idProduct     Int      @map("id_product")
+  locationType  String   @map("location_type") @db.VarChar(20)
+  idUser        Int?     @map("id_user")
+  stock         Int      @default(0)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  product       Product  @relation(fields: [idProduct], references: [idProduct])
+  user          User?    @relation(fields: [idUser], references: [idUser])
+
+  @@unique([idProduct, locationType, idUser], map: "uq_inventory_product_location")
+  @@map("inventory")
+}
+
+model InventoryMovement {
+  idMovement    BigInt   @id @default(autoincrement()) @map("id_movement")
+  movementType  String   @map("movement_type") @db.VarChar(30)
+  idProduct     Int      @map("id_product")
+  quantity      Int
+  fromLocation  String   @map("from_location") @db.VarChar(120)
+  toLocation    String   @map("to_location") @db.VarChar(120)
+  reason        String   @db.VarChar(255)
+  idPerformedBy Int?     @map("id_performed_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  product       Product  @relation(fields: [idProduct], references: [idProduct])
+  performedBy   User?    @relation("inventory_movements_performed_by", fields: [idPerformedBy], references: [idUser], onDelete: SetNull)
+
+  @@index([idProduct], map: "idx_inventory_movements_product")
+  @@index([createdAt], map: "idx_inventory_movements_created_at")
+  @@index([idPerformedBy], map: "idx_inventory_movements_performed_by")
+  @@map("inventory_movements")
+}
+
+model Sale {
+  idSale         BigInt      @id @default(autoincrement()) @map("id_sale")
+  idUser         Int         @map("id_user")
+  idCustomer     Int?        @map("id_customer")
+  subtotal       Decimal     @db.Decimal(12, 2)
+  taxIsv         Decimal     @default(0) @map("tax_isv") @db.Decimal(12, 2)
+  taxIva         Decimal     @default(0) @map("tax_iva") @db.Decimal(12, 2)
+  total          Decimal     @db.Decimal(12, 2)
+  isCredit       Boolean     @default(false) @map("is_credit")
+  hasInvoice     Boolean     @default(false) @map("has_invoice")
+  invoiceNumber  BigInt?     @map("invoice_number")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  user           User        @relation(fields: [idUser], references: [idUser])
+  customer       Customer?   @relation(fields: [idCustomer], references: [idCustomer])
+  details        SaleDetail[]
+  creditSale     CreditSale?
+
+  @@index([idUser], map: "idx_sale_user")
+  @@index([idCustomer], map: "idx_sale_customer")
+  @@map("sales")
+}
+
+model SaleDetail {
+  idSaleDetail      BigInt   @id @default(autoincrement()) @map("id_sale_detail")
+  idSale            BigInt   @map("id_sale")
+  idProduct         Int      @map("id_product")
+  quantitySale      Decimal  @map("quantity_sale") @db.Decimal(12, 2)
+  quantityBase      Decimal  @map("quantity_base") @db.Decimal(12, 2)
+  unitLabel         String   @map("unit_label") @db.VarChar(30)
+  conversionFactor  Decimal  @map("conversion_factor") @db.Decimal(12, 4)
+  unitPrice         Decimal  @map("unit_price") @db.Decimal(12, 2)
+  subtotal          Decimal  @db.Decimal(12, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
+  sale              Sale     @relation(fields: [idSale], references: [idSale])
+  product           Product  @relation(fields: [idProduct], references: [idProduct])
+
+  @@index([idSale], map: "idx_sale_detail_sale")
+  @@map("sale_details")
+}
+
+model SystemSetting {
+  idSetting     Int       @id @default(autoincrement()) @map("id_setting")
+  settingKey    String    @unique @map("setting_key") @db.VarChar(120)
+  settingValue  String    @map("setting_value") @db.VarChar(600)
+  valueType     String    @map("value_type") @db.VarChar(20)
+  category      String?   @db.VarChar(100)
+  description   String?   @db.VarChar(255)
+  updatedBy     Int?      @map("updated_by")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  updatedByUser User?     @relation("settings_updated_by", fields: [updatedBy], references: [idUser])
+
+  @@map("system_settings")
+}
+
+model SmtpSetting {
+  idSmtpSetting    Int      @id @default(autoincrement()) @map("id_smtp_setting")
+  smtpHost         String   @map("smtp_host") @db.VarChar(150)
+  smtpPort         Int      @default(587) @map("smtp_port")
+  smtpUser         String   @map("smtp_user") @db.VarChar(150)
+  smtpPasswordEnc  String   @map("smtp_password_enc") @db.Text
+  smtpEncryption   String   @map("smtp_encryption") @db.VarChar(20)
+  fromEmail        String   @map("from_email") @db.VarChar(150)
+  fromName         String?  @map("from_name") @db.VarChar(150)
+  isActive         Boolean  @default(true) @map("is_active")
+  updatedBy        Int?     @map("updated_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("smtp_settings")
+}
+
+model Customer {
+  idCustomer    Int      @id @default(autoincrement()) @map("id_customer")
+  customerName  String   @map("customer_name") @db.VarChar(150)
+  phone         String?  @db.VarChar(30)
+  email         String?  @db.VarChar(150)
+  address       String?  @db.VarChar(255)
+  idPlace       Int?     @map("id_place")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  placeItem     CatalogItem? @relation("customer_place", fields: [idPlace], references: [idItem], onDelete: SetNull)
+
+  sales         Sale[]
+  creditSales    CreditSale[]
+
+  @@index([idPlace], map: "idx_customers_place")
+  @@map("customers")
+}
+
+model CreditSale {
+  idCreditSale   BigInt      @id @default(autoincrement()) @map("id_credit_sale")
+  idSale         BigInt      @unique @map("id_sale")
+  idCustomer     Int         @map("id_customer")
+  dueDate        DateTime?   @map("due_date")
+  creditTotal    Decimal     @map("credit_total") @db.Decimal(12, 2)
+  paidTotal      Decimal     @default(0) @map("paid_total") @db.Decimal(12, 2)
+  balanceTotal   Decimal     @map("balance_total") @db.Decimal(12, 2)
+  status         String      @db.VarChar(20)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  sale           Sale        @relation(fields: [idSale], references: [idSale])
+  customer       Customer    @relation(fields: [idCustomer], references: [idCustomer])
+  payments       CreditPayment[]
+
+  @@map("credit_sales")
+}
+
+model CreditPayment {
+  idCreditPayment  BigInt    @id @default(autoincrement()) @map("id_credit_payment")
+  idCreditSale     BigInt    @map("id_credit_sale")
+  amount           Decimal   @db.Decimal(12, 2)
+  paymentDate      DateTime  @map("payment_date")
+  note             String?   @db.VarChar(255)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  creditSale       CreditSale @relation(fields: [idCreditSale], references: [idCreditSale])
+
+  @@index([idCreditSale], map: "idx_credit_payments_credit_sale")
+  @@map("credit_payments")
+}
