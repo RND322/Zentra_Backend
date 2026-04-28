@@ -165,7 +165,16 @@ export class SettingsService {
       orderBy: { idSmtpSetting: "asc" },
     });
     if (!row) {
-      throw new BadRequestException("No existe configuración SMTP registrada.");
+      return {
+        host: "",
+        port: 587,
+        username: "",
+        encryptedPassword: "",
+        encryption: "TLS",
+        senderEmail: "",
+        senderName: "",
+        isActive: false,
+      };
     }
     return {
       host: row.smtpHost,
